@@ -5,12 +5,15 @@ version: 2.1
 orbs:
   node: circleci/node@5
 
-jobs:
-  sonarqube:
-    working_directory: ~/build
+executors:
+  sonar-docker:
     docker:
       - image: sonarsource/sonar-scanner-cli
-        resource_class: small
+
+jobs:
+  sonarqube:
+    executor: sonar-docker
+    working_directory: ~/build
     steps:
       - run: find .
       - attach_workspace:
@@ -75,7 +78,6 @@ jobs:
 workflows:
   build-and-test:
     jobs:
-      - sonarqube
       - test-node
       - build-node:
           requires:
