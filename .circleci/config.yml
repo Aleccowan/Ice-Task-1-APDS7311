@@ -1,5 +1,5 @@
 # This config was automatically generated from your source code
-# Stacks detected: deps:node:VS Code Projects/frontend
+# Stacks detected: deps:node:frontend
 version: 2.1
 
 orbs:
@@ -13,9 +13,9 @@ executors:
 jobs:
   sonarqube:
     executor: sonar-docker
-    working_directory: ~/build
+    working_directory: ~/project/frontend  # Updated path
     steps:
-      # Remove the `find .` command if it is unnecessary
+      - run: find .
       - attach_workspace:
           at: ~/workspace
       - run: |
@@ -34,7 +34,7 @@ jobs:
   test-node:
     # Install node dependencies and run tests
     executor: node/default
-    working_directory: ~/project/VS Code Projects/frontend
+    working_directory: ~/project/frontend  # Updated path
     steps:
       - checkout:
           path: ~/project
@@ -47,7 +47,7 @@ jobs:
   build-node:
     # Build node project
     executor: node/default
-    working_directory: ~/project/VS Code Projects/frontend
+    working_directory: ~/project/frontend  # Updated path
     steps:
       - checkout:
           path: ~/project
@@ -66,15 +66,6 @@ jobs:
           path: ~/artifacts
           destination: node-build
 
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - run:
-          name: deploy
-          command: '# e.g., ./deploy.sh'
-
 workflows:
   build-and-test:
     jobs:
@@ -83,6 +74,3 @@ workflows:
       - build-node:
           requires:
             - test-node
-    # - deploy:
-    #     requires:
-    #       - build-node
