@@ -15,7 +15,7 @@ jobs:
     executor: sonar-docker
     working_directory: ~/build
     steps:
-      - run: find .
+      # Remove the `find .` command if it is unnecessary
       - attach_workspace:
           at: ~/workspace
       - run: |
