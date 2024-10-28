@@ -1,5 +1,4 @@
 # This config was automatically generated from your source code
-# Stacks detected: deps:node:frontend
 version: 2.1
 
 orbs:
@@ -11,11 +10,12 @@ executors:
       - image: sonarsource/sonar-scanner-cli
 
 jobs:
-  sonarqube:
+  sonarqube-frontend:
     executor: sonar-docker
-    working_directory: ~/project/frontend  # Updated path
+    working_directory: ~/project/frontend  # Path for frontend analysis
     steps:
-      # Remove the `find .` command if it is unnecessary
+      - checkout:
+          path: ~/project
       - attach_workspace:
           at: ~/workspace
       - run: |
@@ -31,23 +31,54 @@ jobs:
             -Dsonar.branch.name="$SONAR_BRANCH" \
             -Dsonar.sources="."
 
-  test-node:
-    # Install node dependencies and run tests
+  sonarqube-backend:
+    executor: sonar-docker
+    working_directory: ~/project/backend  # Path for backend analysis
+    steps:
+      - checkout:
+          path: ~/project
+      - attach_workspace:
+          at: ~/workspace
+      - run: |
+          SONAR_BRANCH="${CIRCLE_BRANCH:-main}"
+          echo "Sonar branch value is: $SONAR_BRANCH"
+          echo "Sonar org value is: $SONAR_ORG"
+          sonar-scanner \
+            -Dsonar.projectKey="$SONAR_PROJECT_KEY_BACKEND" \
+            -Dsonar.organization="$SONAR_ORG" \
+            -Dsonar.host.url="https://sonarcloud.io" \
+            -Dsonar.exclusions="**/android/**,**/ios/**" \
+            -Dsonar.login="$SONAR_TOKEN" \
+            -Dsonar.branch.name="$SONAR_BRANCH" \
+            -Dsonar.sources="."
+
+  test-frontend:
     executor: node/default
-    working_directory: ~/project/frontend  # Updated path
+    working_directory: ~/project/frontend  # Path for frontend tests
     steps:
       - checkout:
           path: ~/project
       - node/install-packages:
           pkg-manager: npm
       - run:
-          name: Run tests
+          name: Run frontend tests
           command: npm test --passWithNoTests
 
-  build-node:
-    # Build node project
+  test-backend:
     executor: node/default
-    working_directory: ~/project/frontend  # Updated path
+    working_directory: ~/project/backend  # Path for backend tests
+    steps:
+      - checkout:
+          path: ~/project
+      - node/install-packages:
+          pkg-manager: npm
+      - run:
+          name: Run backend tests
+          command: npm test --passWithNoTests
+
+  build-frontend:
+    executor: node/default
+    working_directory: ~/project/frontend  # Path for frontend build
     steps:
       - checkout:
           path: ~/project
@@ -57,20 +88,44 @@ jobs:
           command: npm run build
       - run:
           name: Create the ~/artifacts directory if it doesn't exist
-          command: mkdir -p ~/artifacts
-      # Copy output to artifacts dir
+          command: mkdir -p ~/artifacts/frontend
       - run:
-          name: Copy artifacts
-          command: cp -R build dist public .output .next .docusaurus ~/artifacts 2>/dev/null || true
+          name: Copy frontend artifacts
+          command: cp -R build dist public .output .next .docusaurus ~/artifacts/frontend 2>/dev/null || true
       - store_artifacts:
-          path: ~/artifacts
-          destination: node-build
+          path: ~/artifacts/frontend
+          destination: frontend-build
+
+  build-backend:
+    executor: node/default
+    working_directory: ~/project/backend  # Path for backend build
+    steps:
+      - checkout:
+          path: ~/project
+      - node/install-packages:
+          pkg-manager: npm
+      - run:
+          command: npm run build
+      - run:
+          name: Create the ~/artifacts directory if it doesn't exist
+          command: mkdir -p ~/artifacts/backend
+      - run:
+          name: Copy backend artifacts
+          command: cp -R build dist ~/artifacts/backend 2>/dev/null || true
+      - store_artifacts:
+          path: ~/artifacts/backend
+          destination: backend-build
 
 workflows:
   build-and-test:
     jobs:
-      - test-node
-      - sonarqube
-      - build-node:
+      - test-frontend
+      - test-backend
+      - sonarqube-frontend
+      - sonarqube-backend
+      - build-frontend:
           requires:
-            - test-node
+            - test-frontend
+      - build-backend:
+          requires:
+            - test-backend
